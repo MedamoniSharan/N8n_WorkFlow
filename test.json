@@ -1,151 +1,82 @@
 {
-    "name": "Simple API to Email Workflow",
-    "nodes": [
-      {
-        "parameters": {
-          "httpMethod": "GET",
-          "path": "webhook",
-          "responseMode": "onReceived",
-          "options": {}
-        },
-        "id": "1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
-        "name": "Webhook",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 1,
-        "position": [
-          240,
-          300
-        ],
-        "webhookId": "12345678-90ab-cdef-1234-567890abcdef"
+  "nodes": [
+    {
+      "parameters": {
+        "email": "youremail@gmail.com",
+        "password": "yourapppassword",
+        "host": "imap.gmail.com",
+        "port": 993,
+        "tls": true,
+        "options": {
+          "mailbox": "INBOX",
+          "fetchAll": false,
+          "limit": 10,
+          "onlyUnread": true
+        }
       },
-      {
-        "parameters": {
-          "url": "https://jsonplaceholder.typicode.com/posts/1",
-          "options": {}
-        },
-        "id": "2b3c4d5e-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-        "name": "HTTP Request",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.1,
-        "position": [
-          460,
-          300
-        ]
+      "id": "IMAP_Email",
+      "name": "Read Email",
+      "type": "n8n-nodes-base.imapEmail",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "fields": {
+          "From": "={{$json.from.text}}",
+          "Subject": "={{$json.subject}}",
+          "Date": "={{$json.date}}",
+          "Text": "={{$json.text}}"
+        }
       },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict"
-            },
-            "conditions": [
-              {
-                "id": "12345678-90ab-cdef-1234-567890abcdef",
-                "leftValue": "={{ $json.userId }}",
-                "rightValue": 1,
-                "operator": {
-                  "type": "number",
-                  "operation": "equals"
-                }
-              }
-            ],
-            "combinator": "and"
-          },
-          "options": {}
-        },
-        "id": "3c4d5e6f-7g8h-9i0j-1k2l-m3n4o5p6q7r8",
-        "name": "IF",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          680,
-          300
-        ]
+      "name": "Extract Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "your_google_sheet_id_or_spreadsheet_file_path",
+        "range": "Sheet1!A:D",
+        "options": {
+          "valueInputMode": "RAW"
+        }
       },
-      {
-        "parameters": {
-          "fromEmail": "noreply@yourcompany.com",
-          "toEmail": "admin@yourcompany.com",
-          "subject": "New Post Alert",
-          "text": "=New post received:\n\nTitle: {{ $json.title }}\nBody: {{ $json.body }}\nUser ID: {{ $json.userId }}",
-          "options": {}
-        },
-        "id": "4d5e6f7g-8h9i-0j1k-2l3m-n4o5p6q7r8s9",
-        "name": "Send Email",
-        "type": "n8n-nodes-base.emailSend",
-        "typeVersion": 2,
-        "position": [
-          900,
-          200
-        ]
-      },
-      {
-        "parameters": {
-          "mode": "passThrough",
-          "output": "No action needed - user ID is not 1"
-        },
-        "id": "5e6f7g8h-9i0j-1k2l-3m4n-o5p6q7r8s9t0",
-        "name": "No Op",
-        "type": "n8n-nodes-base.noOp",
-        "typeVersion": 1,
-        "position": [
-          900,
-          400
-        ]
+      "name": "Save to Excel",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [600, 300],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "Google API"
+        }
       }
-    ],
-    "connections": {
-      "Webhook": {
-        "main": [
-          [
-            {
-              "node": "HTTP Request",
-              "type": "main",
-              "index": 0
-            }
-          ]
+    }
+  ],
+  "connections": {
+    "Read Email": {
+      "main": [
+        [
+          {
+            "node": "Extract Fields",
+            "type": "main",
+            "index": 0
+          }
         ]
-      },
-      "HTTP Request": {
-        "main": [
-          [
-            {
-              "node": "IF",
-              "type": "main",
-              "index": 0
-            }
-          ]
+      ]
+    },
+    "Extract Fields": {
+      "main": [
+        [
+          {
+            "node": "Save to Excel",
+            "type": "main",
+            "index": 0
+          }
         ]
-      },
-      "IF": {
-        "main": [
-          [
-            {
-              "node": "Send Email",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "No Op",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      }
-    },
-    "active": false,
-    "settings": {
-      "executionOrder": "v1"
-    },
-    "versionId": "12345678-90ab-cdef-1234-567890abcdef",
-    "meta": {
-      "templateCredsSetupCompleted": true
-    },
-    "id": "87654321-abcd-ef12-3456-789012345678",
-    "tags": []
+      ]
+    }
   }
+}
