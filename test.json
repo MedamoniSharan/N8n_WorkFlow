@@ -1,82 +1,155 @@
 {
+  "name": "Simple Email to Excel",
   "nodes": [
     {
       "parameters": {
-        "email": "youremail@gmail.com",
-        "password": "yourapppassword",
-        "host": "imap.gmail.com",
-        "port": 993,
-        "tls": true,
+        "httpMethod": "GET",
+        "path": "read-emails",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "postProcessAction": "read",
+        "simple": false,
         "options": {
-          "mailbox": "INBOX",
-          "fetchAll": false,
-          "limit": 10,
-          "onlyUnread": true
+          "attachments": false,
+          "downloadAttachments": false
         }
       },
-      "id": "IMAP_Email",
-      "name": "Read Email",
+      "id": "2b3c4d5e-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
+      "name": "Read Emails",
       "type": "n8n-nodes-base.imapEmail",
-      "typeVersion": 1,
-      "position": [200, 300]
-    },
-    {
-      "parameters": {
-        "fields": {
-          "From": "={{$json.from.text}}",
-          "Subject": "={{$json.subject}}",
-          "Date": "={{$json.date}}",
-          "Text": "={{$json.text}}"
-        }
-      },
-      "name": "Extract Fields",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [400, 300]
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "sheetId": "your_google_sheet_id_or_spreadsheet_file_path",
-        "range": "Sheet1!A:D",
-        "options": {
-          "valueInputMode": "RAW"
-        }
-      },
-      "name": "Save to Excel",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 1,
-      "position": [600, 300],
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
       "credentials": {
-        "googleApi": {
-          "id": "YOUR_GOOGLE_CREDENTIAL_ID",
-          "name": "Google API"
+        "imap": {
+          "id": "1",
+          "name": "Email IMAP"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple email processing for Excel\nconst emails = [];\n\n// Process each email\nfor (const item of $input.all()) {\n  const email = item.json;\n  \n  emails.push({\n    'Date': new Date(email.date).toLocaleDateString(),\n    'Time': new Date(email.date).toLocaleTimeString(),\n    'From': email.from?.text || email.from || 'Unknown',\n    'Subject': email.subject || 'No Subject',\n    'Preview': email.text ? email.text.substring(0, 150).replace(/\\n/g, ' ') : 'No content',\n    'Status': email.flags?.includes('\\\\Seen') ? 'Read' : 'Unread',\n    'Attachments': email.attachments?.length || 0\n  });\n}\n\nreturn emails.map(email => ({ json: email }));"
+      },
+      "id": "3c4d5e6f-7g8h-9i0j-1k2l-m3n4o5p6q7r8",
+      "name": "Format Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toFile",
+        "fileFormat": "xlsx",
+        "options": {
+          "fileName": "My_Emails_{{ $now.format('yyyy-MM-dd_HH-mm') }}.xlsx",
+          "sheetName": "Emails"
+        }
+      },
+      "id": "4d5e6f7g-8h9i-0j1k-2l3m-n4o5p6q7r8s9",
+      "name": "Create Excel",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "options": {
+          "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+      },
+      "id": "5e6f7g8h-9i0j-1k2l-3m4n-o5p6q7r8s9t0",
+      "name": "Download Excel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ]
     }
   ],
   "connections": {
-    "Read Email": {
+    "Manual Trigger": {
       "main": [
         [
           {
-            "node": "Extract Fields",
+            "node": "Read Emails",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Fields": {
+    "Read Emails": {
       "main": [
         [
           {
-            "node": "Save to Excel",
+            "node": "Format Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data": {
+      "main": [
+        [
+          {
+            "node": "Create Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Excel": {
+      "main": [
+        [
+          {
+            "node": "Download Excel",
             "type": "main",
             "index": 0
           }
         ]
       ]
     }
-  }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "12345678-90ab-cdef-1234-567890abcdef",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "87654321-abcd-ef12-3456-789012345678",
+  "tags": []
 }
