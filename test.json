@@ -1,14 +1,14 @@
 {
-  "name": "Simple Email to Excel",
+  "name": "Fixed Email to Excel Workflow",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "GET",
-        "path": "read-emails",
+        "path": "trigger-email-read",
         "responseMode": "onReceived",
         "options": {}
       },
-      "id": "1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
+      "id": "webhook-trigger",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
@@ -29,12 +29,13 @@
         "postProcessAction": "read",
         "simple": false,
         "options": {
+          "allowUnauthorizedCerts": false,
           "attachments": false,
           "downloadAttachments": false
         }
       },
-      "id": "2b3c4d5e-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "name": "Read Emails",
+      "id": "read-email-node",
+      "name": "Read Email",
       "type": "n8n-nodes-base.imapEmail",
       "typeVersion": 2,
       "position": [
@@ -43,17 +44,17 @@
       ],
       "credentials": {
         "imap": {
-          "id": "1",
-          "name": "Email IMAP"
+          "id": "email-credentials",
+          "name": "Email IMAP Credentials"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Simple email processing for Excel\nconst emails = [];\n\n// Process each email\nfor (const item of $input.all()) {\n  const email = item.json;\n  \n  emails.push({\n    'Date': new Date(email.date).toLocaleDateString(),\n    'Time': new Date(email.date).toLocaleTimeString(),\n    'From': email.from?.text || email.from || 'Unknown',\n    'Subject': email.subject || 'No Subject',\n    'Preview': email.text ? email.text.substring(0, 150).replace(/\\n/g, ' ') : 'No content',\n    'Status': email.flags?.includes('\\\\Seen') ? 'Read' : 'Unread',\n    'Attachments': email.attachments?.length || 0\n  });\n}\n\nreturn emails.map(email => ({ json: email }));"
+        "jsCode": "// Extract and format email fields\nconst extractedEmails = [];\n\nfor (const item of $input.all()) {\n  const email = item.json;\n  \n  // Extract key fields from email\n  const extractedData = {\n    'Email Date': email.date ? new Date(email.date).toLocaleDateString() : 'Unknown',\n    'Email Time': email.date ? new Date(email.date).toLocaleTimeString() : 'Unknown',\n    'From Address': email.from?.text || email.from || 'Unknown Sender',\n    'To Address': email.to?.text || email.to || 'Unknown Recipient',\n    'Subject': email.subject || 'No Subject',\n    'Body Preview': email.text ? email.text.substring(0, 200).replace(/[\\r\\n]+/g, ' ').trim() : 'No Content',\n    'Has Attachments': (email.attachments && email.attachments.length > 0) ? 'Yes' : 'No',\n    'Message ID': email.messageId || 'Unknown',\n    'Read Status': (email.flags && email.flags.includes('\\\\Seen')) ? 'Read' : 'Unread',\n    'Email Size': email.size || 0\n  };\n  \n  extractedEmails.push(extractedData);\n}\n\n// Return formatted data\nreturn extractedEmails.map(email => ({ json: email }));"
       },
-      "id": "3c4d5e6f-7g8h-9i0j-1k2l-m3n4o5p6q7r8",
-      "name": "Format Data",
+      "id": "extract-fields-node",
+      "name": "Extract Fields",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -66,12 +67,13 @@
         "operation": "toFile",
         "fileFormat": "xlsx",
         "options": {
-          "fileName": "My_Emails_{{ $now.format('yyyy-MM-dd_HH-mm') }}.xlsx",
-          "sheetName": "Emails"
+          "fileName": "Email_Export_{{ $now.format('yyyy-MM-dd_HH-mm-ss') }}.xlsx",
+          "sheetName": "Email Data",
+          "headerRow": true
         }
       },
-      "id": "4d5e6f7g-8h9i-0j1k-2l3m-n4o5p6q7r8s9",
-      "name": "Create Excel",
+      "id": "save-excel-node",
+      "name": "Save to Excel",
       "type": "n8n-nodes-base.spreadsheetFile",
       "typeVersion": 2,
       "position": [
@@ -86,8 +88,8 @@
           "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         }
       },
-      "id": "5e6f7g8h-9i0j-1k2l-3m4n-o5p6q7r8s9t0",
-      "name": "Download Excel",
+      "id": "download-response-node",
+      "name": "Download File",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
@@ -101,40 +103,40 @@
       "main": [
         [
           {
-            "node": "Read Emails",
+            "node": "Read Email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read Emails": {
+    "Read Email": {
       "main": [
         [
           {
-            "node": "Format Data",
+            "node": "Extract Fields",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Data": {
+    "Extract Fields": {
       "main": [
         [
           {
-            "node": "Create Excel",
+            "node": "Save to Excel",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Excel": {
+    "Save to Excel": {
       "main": [
         [
           {
-            "node": "Download Excel",
+            "node": "Download File",
             "type": "main",
             "index": 0
           }
@@ -146,10 +148,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "12345678-90ab-cdef-1234-567890abcdef",
+  "versionId": "workflow-version-1",
   "meta": {
     "templateCredsSetupCompleted": false
   },
-  "id": "87654321-abcd-ef12-3456-789012345678",
+  "id": "email-to-excel-workflow",
   "tags": []
 }
